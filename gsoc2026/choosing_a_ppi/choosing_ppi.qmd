@@ -1,0 +1,163 @@
+---
+title: "Choosing a Projection Pursuit Index"
+format:
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 3
+engine: knitr
+date: 2026-07-14
+execute:
+  warning: false
+  message: false
+  cache: true
+license: "All Rights Reserved"
+copyright: "Copyright © 2026 Tina Rashid Jafari. All rights reserved."
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+## Introduction
+
+Projection pursuit (PP) is a statistical technique for exploring high-dimensional data by searching for low-dimensional projections that reveal interesting structure. Instead of examining every possible projection, projection pursuit defines an objective function, called a **projection pursuit index (PPI)**, which measures how "interesting" a two-dimensional projection is.
+
+A guided tour searches through the projection space and continuously updates the projection basis to maximize the chosen projection pursuit index. Therefore, the quality of the resulting visualization depends strongly on the properties of the selected index.
+
+Different indices are designed to detect different types of structures. Some emphasize nonlinear relationships, some detect clusters, while others are designed for holes, strings, or smooth manifolds. Consequently, no single projection pursuit index is optimal for every dataset.
+
+This article introduces the basic principles of projection pursuit indices, discusses the characteristics of a useful index, and provides guidance for selecting an appropriate index for different analysis tasks.
+
+
+## What is a Projection Pursuit Index?
+
+Suppose the data matrix is
+
+$$
+X \in \mathbb{R}^{n \times p},
+$$
+
+and let
+
+$$
+A \in \mathbb{R}^{p \times 2}
+$$
+
+be a two-dimensional projection basis.
+
+The projected data are
+
+$$
+Y = XA.
+$$
+
+A projection pursuit index is a function
+
+$$
+I(Y),
+$$
+
+that assigns a numerical score to the projected data.
+
+Higher values indicate projections that better match the type of structure the index is designed to detect.
+
+The guided tour repeatedly evaluates this index while searching through projection space, attempting to locate projections with high index values.
+
+
+## How Does a Guided Tour Work?
+
+A guided tour is an optimization procedure operating in projection space.
+
+Rather than searching every possible projection, it:
+
+1. begins from an initial projection;
+2. generates nearby candidate projections;
+3. evaluates the projection pursuit index for each candidate;
+4. moves toward projections with higher index values; and
+5. repeats until no better projection is found.
+
+The optimization algorithm is independent of the projection pursuit index. Different indices provide different objective functions that guide the search toward different structures.
+
+A general guided tour in R can be written as:
+
+```r
+
+library(tourr)
+
+animate_xy(
+  data,
+  guided_tour(index_function)
+)
+```
+
+Here, `index_function` is the projection pursuit index used to evaluate each candidate projection.
+
+
+## What Makes a Good Projection Pursuit Index?
+
+A useful projection pursuit index should possess several desirable properties.
+
+### Detects Meaningful Structure
+
+The index should assign larger values to projections containing genuine structure than to random noise.
+
+
+### Rotation Invariance
+
+Rotating the same two-dimensional projection should not substantially change the index value.
+
+Since the projection plane remains unchanged, the index should depend on the plane itself rather than the orientation of the points within that plane.
+
+
+### Distinguishes Signal from Noise
+
+A useful index should assign consistently low values to projections containing only noise while producing higher values for structured projections.
+
+Large overlap between signal and noise can make optimization substantially more difficult.
+
+
+### Smooth Optimization Landscape
+
+The index should change smoothly as the projection moves through projection space.
+
+Large discontinuities or many local optima may prevent optimization algorithms from finding the global optimum.
+
+
+### Good Squintability
+
+An ideal index begins increasing before reaching the optimal projection.
+
+If the index only increases when the projection is already very close to the optimum, optimization becomes much more challenging.
+
+
+### Computational Efficiency
+
+Since guided tours may evaluate the index thousands of times, computational efficiency is important, especially for large datasets.
+
+
+### Robustness
+
+The index should behave reasonably under moderate noise, outliers, and different sample sizes.
+
+Depending on the application, robustness to data scaling may also be an important consideration. Scaling can change the relative contribution of signal and noise variables and may therefore alter the projection identified as optimal.
+
+
+## Choosing an Index
+
+Different projection pursuit indices are designed to identify different structures. The table below provides a starting point when selecting an index.
+
+| Index | Primary structure | Typical applications | Documentation | Blog |
+|---|---|---|---|---|
+| Stringy | Curves and elongated structures | Hidden nonlinear relationships | [Stringy vignette](https://tinarj.github.io/blog/tourr_stringy/tourr_stringy.html) | [Stringy blog](https://tinarj.github.io/blog/stringy_ppi_suitability.html) |
+| Skinny | Thin, elongated, and narrow structures | Hidden linear, filament-like, and approximately one-dimensional structures | [Skinny vignette](https://tinarj.github.io/blog/tourr_skinny/tourr_skinny.html) | [Skinny blog](link) |
+
+
+

@@ -1,0 +1,90 @@
+---
+title: "Google Summer of Code 2026"
+output: html_document
+---
+
+
+**Project:** tourr: New Projection Pursuit Indices Based on Scagnostics 
+
+**Contributor:** Tina Rashid Jafari  
+
+
+## Overview
+
+The aim of this project was to extend the `tourr` package with new projection pursuit (PP) indices based on scagnostic measures. Projection pursuit searches for informative low-dimensional projections of high-dimensional data, and the choice of projection pursuit index is critical because it determines what type of structure guides the search. The project builds on scagnostic implementations in `cassowaryr`, diagnostic tools in `spinebil` and `ferrn`, and the guided-tour framework in `tourr`.
+
+The original project plan included developing scagnostic-based PP indices, documenting and testing them, providing usage examples and vignettes, studying their behaviour with guided-tour optimizers, and investigating extensions for higher-dimensional problems. Additional longer-term goals included comparisons with nonlinear dimension-reduction methods, indices incorporating categorical variables, and penalty terms for handling many variables.
+
+## Work completed
+
+### 1. Assessing whether scagnostics are suitable PP indices
+
+Before using the scagnostic measures inside a guided tour, I first investigated whether they have the properties required of a useful projection pursuit index. I used functionality from `spinebil` to study index behaviour and `ferrn` to diagnose guided-tour searches. I created several synthetic datasets with known target structures so that the correct projection was known in advance and the ability of an index to recover its intended pattern could be assessed directly.
+
+This work considered properties such as the ability to distinguish meaningful structure from noise, rotation invariance, behaviour along paths from noise to signal, optimisation behaviour, and whether the index begins to respond before the exact optimum is reached. A general summary of these ideas is available in my article [Choosing a Projection Pursuit Index](https://tinarj.github.io/blog/choosing_a_ppi/choosing_ppi.html).
+
+I focused particularly on the `stringy05` and `skinny` scagnostics. The stringy index is intended to identify nonlinear, elongated or snake-like structure, while skinny targets thin and approximately one-dimensional patterns. I tested these indices on known signal projections and noise projections to determine whether they behaved consistently with these intended interpretations.
+
+### 2. Developing a noise baseline and rescaling the indices
+
+An important issue was that the raw scagnostic indices did not necessarily produce values close to zero for Gaussian noise. This can be problematic for projection pursuit because a high-dimensional search encounters a very large number of mostly uninformative projections. If random noise projections receive moderately large index values, an optimizer may be attracted to them or become trapped away from the true structure.
+
+To address this, I simulated bivariate Gaussian noise **100,000 times** and estimated the upper tail of the null distribution of each index. I used the 95th percentile as a noise baseline. This has an interpretation similar to a 5% significance level: only approximately 5% of pure-noise projections would be expected to exceed the threshold.
+
+I then repeated the null-distribution study across different sample sizes and fitted sample-size-dependent functions to the estimated 95th percentiles. These thresholds were used to rescale the indices so that values compatible with Gaussian noise are mapped close to zero, while stronger structured projections retain larger values. The fitted thresholds used in the current experiments are
+
+- `stringy05`: \(\ell(n)=0.05+3.86/\sqrt{n}\)
+- `skinny`: \(\ell(n)=0.72-0.19\log(n)+0.02\{\log(n)\}^2\)
+
+This rescaling provides a practical way of improving separation between signal and noise before the indices are used as objective functions in high-dimensional guided tours.
+
+Detailed investigations are available here:
+
+- [Checking whether stringy05 is suitable as a projection pursuit index](https://tinarj.github.io/blog/tourr_stringy/stringy_ppi_suitability.html)
+- [Checking whether skinny is suitable as a projection pursuit index](https://tinarj.github.io/blog/tourr_skinny/skinny_ppi_suitability.html)
+
+### 3. Using the indices inside `tourr`
+
+After establishing that the indices could identify their intended structures, I used them as projection pursuit indices in `tourr`. I first explored the generated datasets with a grand tour to understand how the known structure appeared across projections. I then used the indices in guided tours and compared several search strategies, including `search_better`, `search_better_random`, and the Jellyfish optimizer.
+
+Jellyfish became the main optimizer investigated in the later stages of the project because it searches from multiple candidate projections simultaneously and therefore provides a broader exploration of projection space. For each Jellyfish search, I extracted the projection with the maximum index value across loops and iterations and compared it with the known optimal projection.
+
+The complete worked examples are available here:
+
+- [Using the stringy05 index in a guided tour](https://tinarj.github.io/blog/tourr_stringy/tourr_stringy.html)
+- [Using the skinny index in a guided tour](https://tinarj.github.io/blog/tourr_skinny/tourr_skinny.html)
+
+### 4. Investigating performance as dimensionality increases
+
+A major part of the project was investigating what happens when the same hidden two-dimensional structure is embedded in increasingly high-dimensional data. I generated datasets in which two variables contained the known signal and the remaining variables were Gaussian noise. This allowed the true optimal projection to remain known while the search space became progressively harder.
+
+I applied the Jellyfish optimizer to datasets of different dimensions and examined whether it could recover a projection close to the known optimum. I also repeated searches across multiple random runs and investigated the effect of the number of Jellyfish candidates. These experiments showed that recovering the optimal projection becomes more difficult as the number of noise dimensions increases. This is an important practical result because it highlights that both the quality of the PP index and the behaviour of the optimizer matter in high-dimensional projection pursuit.
+
+The experiments also motivated additional work on local polishing and, more generally, on penalising the projection basis so that the optimizer can focus on a smaller number of relevant variables.
+
+## Current state and remaining work
+
+The project has produced working experimental scagnostic-based PP indices, null-based rescaling methods, simulation studies, guided-tour examples, and detailed documentation of the suitability and optimisation experiments. The main methodological focus during the coding period became understanding the indices and their optimisation behaviour rather than treating the scagnostic functions as direct drop-in objectives without diagnostic assessment.
+
+ In particular, I would like to continue with:
+
+- extending the high-dimensional study and developing a penalty on the projection basis to reduce the influence of irrelevant variables;
+- developing scagnostic-based indices that incorporate a categorical grouping variable and search for projections with the largest between-group difference; and
+- completing package-level documentation, tests and CRAN-related preparation as the functionality is finalised.
+
+## Challenges and lessons learned
+
+The most challenging part of the project was that a scagnostic measure that works well on a fixed two-dimensional dataset is not automatically a good projection pursuit objective. Noise behaviour, sample size, scaling, optimisation smoothness and the rapidly increasing size of projection space all affect whether the guided tour can find the desired view. The project therefore developed from simply adding indices to `tourr` into a broader investigation of how to validate and calibrate those indices before optimisation.
+
+This work substantially improved my understanding of projection pursuit, optimisation in projection space, simulation-based validation, R package development, reproducible experimentation, and the workflow required to turn a statistical idea into functionality that can eventually be contributed to an open-source package.
+
+
+## Links
+
+- `tourr`: https://github.com/ggobi/tourr
+- My `tourr` fork: https://github.com/Tinarj/tourr
+- Choosing a PPI: https://tinarj.github.io/blog/choosing_a_ppi/choosing_ppi.html
+- Stringy suitability study: https://tinarj.github.io/blog/tourr_stringy/stringy_ppi_suitability.html
+- Stringy guided-tour study: https://tinarj.github.io/blog/tourr_stringy/tourr_stringy.html
+- Skinny suitability study: https://tinarj.github.io/blog/tourr_skinny/skinny_ppi_suitability.html
+- Skinny guided-tour study: https://tinarj.github.io/blog/tourr_skinny/tourr_skinny.html
