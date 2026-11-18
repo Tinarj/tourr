@@ -15,13 +15,16 @@
 #' @param alpha the initial size of the search window, in radians
 #' @param cooling the amount the size of the search window should be adjusted
 #'   by after each step
-#' @param search_f the search strategy to use: \code{\link{search_geodesic}}, \code{\link{search_better}},
+#' @param search_f the search strategy to use: \code{\link{search_geodesic}}, \code{\link{search_jellyfish}}, \code{\link{search_better}},
 #'   \code{\link{search_better_random}}, \code{\link{search_polish}}. Default is \code{\link{search_geodesic}}.
 #' @param max.tries the maximum number of unsuccessful attempts to find
 #'   a better projection before giving up
 #' @param max.i the maximum index value, stop search if a larger value is found
 #' @param n_sample number of samples to generate if \code{search_f} is \code{\link{search_polish}}
-#' @param n_jellies only used for \code{search_jellyfish}, the number of jellyfish to use
+#' @param n_jellies only used for \code{\link{search_jellyfish}}, the number of jellyfish to use
+#' @param initial_bases optional list of user-defined 2D projection bases
+#'   for \code{\link{search_jellyfish}}. Bases are orthonormalised automatically.
+#'   Remaining jellyfish are initialized randomly. Default is \code{NULL}.
 #' @param ... arguments sent to the search_f
 #' @seealso \code{\link{cmass}}, \code{\link{holes}} and \code{\link{lda_pp}}
 #'   for examples of index functions.  The function should take a numeric
@@ -45,7 +48,7 @@
 #' }
 guided_tour <- function(index_f, d = 2, cooling = 0.99, max.tries = 25,
                         max.i = Inf, search_f = search_geodesic,
-                        n_jellies = 30, n_sample = 100, alpha = 0.5,...) {
+                        n_jellies = 30, n_sample = 100, alpha = 0.5, initial_bases = NULL, ...) {
   generator <- function(current, data, tries, ...) {
     index <- function(proj) {
       index_f(as.matrix(data) %*% proj)
@@ -61,7 +64,42 @@ guided_tour <- function(index_f, d = 2, cooling = 0.99, max.tries = 25,
 
     if (is.null(current)) {
       if (method == "search_jellyfish"){
-        current <- replicate(n_jellies, basis_random(ncol(data), d), simplify = FALSE)
+        if (is.null(initial_bases)) {
+
+          current <- replicate(
+            n_jellies,
+            basis_random(ncol(data), d),
+            simplify = FALSE
+          )
+        } else {
+
+          if (!is.list(initial_bases)) {
+            stop("initial_bases must be a list of projection basis matrices.")
+          }
+
+          n_given <- length(initial_bases)
+
+          # Validate and orthonormalise supplied bases
+          initial_bases <- lapply(initial_bases, function(A) {
+            if (!is_orthonormal(A)) {
+              A <- orthonormalise(A)
+            }
+            A
+          })
+
+          # Generate remaining jellyfish randomly
+          n_random <- n_jellies - n_given
+
+          random_bases <- replicate(
+            n_random,
+            basis_random(ncol(data), d),
+            simplify = FALSE
+          )
+
+          # Combine user-defined and random bases
+          current <- c(initial_bases, random_bases)
+        }
+
         cur_index <- sapply(current, index)
         best_id <- which.max(cur_index)
         attr(current, "best_id") <- best_id
